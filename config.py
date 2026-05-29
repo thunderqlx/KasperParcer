@@ -1,5 +1,6 @@
-from __future__ import annotations
+from future import annotations
 
+import base64
 from pathlib import Path
 
 from pydantic import Field, field_validator
@@ -13,6 +14,8 @@ class Settings(BaseSettings):
     telegram_api_hash: str | None = None
     telegram_bot_token: str | None = None
     telegram_user_session: str = "telegram_market_user"
+    telegram_session_string: str | None = None
+    telegram_session_b64: str | None = None
 
     request_delay_min: float = 0.25
     request_delay_max: float = 0.8
@@ -31,3 +34,12 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def ensure_session_file() -> None:
+    session_path = Path(f"{settings.telegram_user_session}.session")
+    if session_path.exists():
+        return
+    if not settings.telegram_session_b64:
+        return
+    session_path.write_bytes(base64.b64decode(settings.telegram_session_b64))
