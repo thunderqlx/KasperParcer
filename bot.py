@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+[30.05.2026 0:39] коля: from future import annotations
 
 import asyncio
 import shutil
@@ -8,7 +8,7 @@ from pathlib import Path
 from pyrogram import Client, filters
 from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
-from config import settings
+from config import ensure_session_file, settings
 from models import GiftType, MarketListing
 from storage import init_storage, load_catalog_cache, save_catalog_cache, save_listings
 from telegram_market import TelegramMarket
@@ -21,6 +21,7 @@ CATALOG_PAGE_SIZE = 8
 
 
 def require_settings() -> None:
+    ensure_session_file()
     missing = []
     if not settings.telegram_api_id:
         missing.append("TELEGRAM_API_ID")
@@ -102,9 +103,7 @@ def owner_range_keyboard() -> InlineKeyboardMarkup:
             [InlineKeyboardButton("Ввести вручную", callback_data="owners:manual")],
         ]
     )
-
-
-def extra_filters_keyboard(state: dict[str, object]) -> InlineKeyboardMarkup:
+[30.05.2026 0:39] коля: def extra_filters_keyboard(state: dict[str, object]) -> InlineKeyboardMarkup:
     premium = str(state.get("premium_filter", "any"))
     level = state.get("level_filter")
     premium_label = {"any": "Premium: любой", "yes": "Premium: есть", "no": "Premium: нет"}[premium]
@@ -215,8 +214,7 @@ async def run_market_scan(bot: Client, message: Message, chat_id: int) -> None:
     done = asyncio.Event()
     cancel_event = asyncio.Event()
     SCAN_CANCEL[chat_id] = cancel_event
-
-    async def updater() -> None:
+[30.05.2026 0:39] коля: async def updater() -> None:
         while not done.is_set():
             latest = "\n".join(progress_lines[-6:])
             try:
@@ -305,20 +303,29 @@ def level_label(value: object) -> str:
 
 @asynccontextmanager
 async def user_client():
-    session_name = prepare_runtime_session()
-    client = Client(
-        session_name,
-        api_id=settings.telegram_api_id,
-        api_hash=settings.telegram_api_hash,
-    )
+    session_name = None
+    if settings.telegram_session_string:
+        client = Client(
+            "telegram_market_runtime",
+            api_id=settings.telegram_api_id,
+            api_hash=settings.telegram_api_hash,
+            session_string=settings.telegram_session_string,
+            in_memory=True,
+        )
+    else:
+        session_name = prepare_runtime_session()
+        client = Client(
+            session_name,
+            api_id=settings.telegram_api_id,
+            api_hash=settings.telegram_api_hash,
+        )
     try:
         async with client:
             yield client
     finally:
-        cleanup_runtime_session(session_name)
-
-
-def prepare_runtime_session() -> str:
+        if session_name:
+            cleanup_runtime_session(session_name)
+[30.05.2026 0:39] коля: def prepare_runtime_session() -> str:
     source = Path(f"{settings.telegram_user_session}.session")
     if not source.exists():
         raise RuntimeError(f"Session file not found: {source}")
@@ -420,7 +427,7 @@ async def main() -> None:
             await callback.answer()
             return
         if data == "owners:manual":
-            STATE.setdefault(chat_id, {"mode": "market"})
+[30.05.2026 0:39] коля: STATE.setdefault(chat_id, {"mode": "market"})
             STATE[chat_id]["step"] = "owner_range"
             await callback.message.reply("Напиши диапазон. Например: 1-2, 1-5, 3-10 или любое")
             await callback.answer()
@@ -512,8 +519,7 @@ async def main() -> None:
             await progress_message.edit_text(f"Не смог загрузить каталог: {exc}")
             return
         await progress_message.edit_text("Выбери NFT:", reply_markup=catalog_keyboard(0))
-
-    def scan_summary(chat_id: int) -> str:
+[30.05.2026 0:39] коля: def scan_summary(chat_id: int) -> str:
         state = STATE[chat_id]
         gift = selected_gift(chat_id)
         return (
@@ -531,6 +537,5 @@ async def main() -> None:
     await asyncio.Event().wait()
 
 
-if __name__ == "__main__":
+if name == "main":
     asyncio.run(main())
-
